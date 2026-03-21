@@ -32,7 +32,7 @@
             transform: translateX(-50%);
             width: max(100vw, 100%);
             height: 36px; 
-            top: 2rem; /* Убрали зависимость от vw, чтобы веревка не съезжала на широких экранах */
+            top: 5rem; /* Опустили веревку, чтобы дать место стрелочке сверху */
             z-index: 0;
             pointer-events: none;
             filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5));
@@ -68,7 +68,7 @@
         <!-- Подсчет очков в правом верхнем углу -->
         <div class="absolute top-4 right-4 md:top-6 md:right-8 z-50 flex flex-col items-center">
             <div class="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-green-500 bg-white flex flex-col items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.4)] transform transition-all duration-300" id="score-container">
-                <span id="score-text" class="text-2xl md:text-3xl font-extrabold text-green-600 leading-none">0</span>
+                <span id="score-text" class="text-xl md:text-2xl font-extrabold text-green-600 leading-none mt-1">0/12</span>
             </div>
         </div>
 
@@ -84,8 +84,8 @@
 
         <!-- Контейнер с флажками и веревкой -->
         <div class="relative z-10 w-full mt-[8vh] md:mt-[10vh] overflow-x-auto overflow-y-hidden custom-scrollbar pb-10">
-            <!-- Уменьшена минимальная ширина для более компактного расположения флажков -->
-            <div class="relative min-w-[800px] w-[90vw] max-w-[1400px] mx-auto px-4" style="padding-top: 2rem; padding-bottom: 3rem;">
+            <!-- Увеличили padding-top до 5rem, чтобы стрелочка не обрезалась верхней границей -->
+            <div class="relative min-w-[800px] w-[90vw] max-w-[1400px] mx-auto px-4" style="padding-top: 5rem; padding-bottom: 3rem;">
                 
                 <!-- Веревка -->
                 <svg class="rope-visual" preserveAspectRatio="none">
@@ -94,7 +94,7 @@
                     <line class="rope-front" x1="0" y1="18" x2="100%" y2="18" />
                 </svg>
 
-                <!-- Убран gap-2, флажки расположены ближе, добавлен -mt-4 для поднятия флажков к веревке -->
+                <!-- Флажки расположены ближе, добавлен -mt-4 для поднятия флажков к веревке -->
                 <div id="flags-container" class="relative w-full flex justify-center items-start z-10 px-2 -mt-4 -space-x-1 md:-space-x-2">
                     <!-- Флажки генерируются через JS -->
                 </div>
@@ -168,7 +168,7 @@
         }
 
         function updateScoreDisplay() {
-            scoreText.innerText = score;
+            scoreText.innerText = `${score}/${SENTENCES.length}`;
             // Анимация пульсации при обновлении счета
             scoreContainer.classList.add('scale-110', 'bg-green-100');
             setTimeout(() => {
