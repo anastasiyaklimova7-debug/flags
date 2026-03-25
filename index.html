@@ -25,14 +25,14 @@
             background: rgba(255, 255, 255, 0.8);
         }
 
-        /* Улучшенное позиционирование веревки */
+        /* Позиционирование веревки */
         .rope-visual {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
             width: max(100vw, 100%);
             height: 36px; 
-            top: 5rem; /* Опустили веревку, чтобы дать место стрелочке сверху */
+            top: 5rem; 
             z-index: 0;
             pointer-events: none;
             filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5));
@@ -56,6 +56,17 @@
             stroke-linecap: round;
             stroke-dasharray: 10 8;
         }
+
+        /* Анимация плавного появления для шариков */
+        .balloon-fade {
+            animation: fadeIn 1.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-gray-900 m-0 p-0 overflow-x-hidden">
@@ -65,7 +76,7 @@
 
         <div class="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-black/70 to-transparent pointer-events-none z-0"></div>
 
-        <!-- Подсчет очков в правом верхнем углу -->
+        <!-- Подсчет очков -->
         <div class="absolute top-4 right-4 md:top-6 md:right-8 z-50 flex flex-col items-center">
             <div class="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-green-500 bg-white flex flex-col items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.4)] transform transition-all duration-300" id="score-container">
                 <span id="score-text" class="text-xl md:text-2xl font-extrabold text-green-600 leading-none mt-1">0/12</span>
@@ -75,7 +86,7 @@
         <!-- Заголовок -->
         <div class="relative z-20 text-center pt-8 px-4 flex-shrink-0">
             <h1 class="text-3xl md:text-5xl font-extrabold text-white drop-shadow-lg mb-3" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">
-                Make a sentence!
+                Make affirmative sentences!
             </h1>
             <p class="text-white text-base md:text-lg font-medium drop-shadow-md bg-black/40 inline-block px-5 py-2 rounded-full backdrop-blur-sm leading-relaxed">
                 Swap the flags. (Drag or click)
@@ -84,7 +95,6 @@
 
         <!-- Контейнер с флажками и веревкой -->
         <div class="relative z-10 w-full mt-[8vh] md:mt-[10vh] overflow-x-auto overflow-y-hidden custom-scrollbar pb-10">
-            <!-- Увеличили padding-top до 5rem, чтобы стрелочка не обрезалась верхней границей -->
             <div class="relative min-w-[800px] w-[90vw] max-w-[1400px] mx-auto px-4" style="padding-top: 5rem; padding-bottom: 3rem;">
                 
                 <!-- Веревка -->
@@ -94,7 +104,6 @@
                     <line class="rope-front" x1="0" y1="18" x2="100%" y2="18" />
                 </svg>
 
-                <!-- Флажки расположены ближе, добавлен -mt-4 для поднятия флажков к веревке -->
                 <div id="flags-container" class="relative w-full flex justify-center items-start z-10 px-2 -mt-4 -space-x-1 md:-space-x-2">
                     <!-- Флажки генерируются через JS -->
                 </div>
@@ -119,6 +128,11 @@
             </button>
         </div>
     </div>
+
+    <!-- Аудио элемент для звука праздника -->
+    <audio id="cheer-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
         const SENTENCES = [
@@ -151,12 +165,33 @@
         let currentSentenceIndex = 0;
         let score = 0;
         let shuffledSentences = [];
+        let audioUnlocked = false;
 
         const flagsContainer = document.getElementById('flags-container');
         const balloonsContainer = document.getElementById('balloons-container');
         const endGameModal = document.getElementById('end-game-modal');
         const scoreText = document.getElementById('score-text');
         const scoreContainer = document.getElementById('score-container');
+        const cheerSound = document.getElementById('cheer-sound');
+        
+        // Звук сделан еще тише (0.08)
+        cheerSound.volume = 0.08;
+
+        // Разблокировка аудио при первом клике
+        function unlockAudio() {
+            if (!audioUnlocked) {
+                cheerSound.play().then(() => {
+                    cheerSound.pause();
+                    cheerSound.currentTime = 0;
+                    audioUnlocked = true;
+                }).catch((err) => console.log("Audio unlock failed:", err));
+                
+                document.removeEventListener('mousedown', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+            }
+        }
+        document.addEventListener('mousedown', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
 
         function startGame() {
             shuffledSentences = [...SENTENCES].sort(() => Math.random() - 0.5);
@@ -169,7 +204,6 @@
 
         function updateScoreDisplay() {
             scoreText.innerText = `${score}/${SENTENCES.length}`;
-            // Анимация пульсации при обновлении счета
             scoreContainer.classList.add('scale-110', 'bg-green-100');
             setTimeout(() => {
                 scoreContainer.classList.remove('scale-110', 'bg-green-100');
@@ -186,7 +220,7 @@
             const initialFlags = words.map((word, idx) => ({
                 id: idx + 1,
                 word: word,
-                imgUrl: FLAG_IMAGES[idx % FLAG_IMAGES.length] // защита от нехватки цветов
+                imgUrl: FLAG_IMAGES[idx % FLAG_IMAGES.length]
             }));
 
             const shuffled = [...initialFlags].sort(() => Math.random() - 0.5);
@@ -210,11 +244,9 @@
 
                 flagElement.className = `relative flex flex-col items-center cursor-pointer transition-all duration-300 ${isSelected ? 'z-30' : 'hover:-translate-y-2 z-20'} ${isWon ? 'cursor-default' : 'active:cursor-grabbing'}`;
                 
-                // Уменьшен размер флажков
                 flagElement.style.flex = '1 1 0';
                 flagElement.style.minWidth = '130px';
                 flagElement.style.maxWidth = '190px';
-                
                 flagElement.style.transformOrigin = 'top center';
                 
                 flagElement.style.filter = isSelected
@@ -225,7 +257,6 @@
                     ? 'scale(1.1) rotate(0deg)'
                     : `rotate(${index % 2 === 0 ? '2deg' : '-2deg'})`;
 
-                // Уменьшенные значения clamp для текста, чтобы всегда вмещался во флажок
                 let fontSizeStyle = 'clamp(1.2rem, 2.5vw, 2.2rem)';
                 if (flag.word.length > 9) {
                     fontSizeStyle = 'clamp(0.8rem, 1.5vw, 1.3rem)';
@@ -235,7 +266,6 @@
                     fontSizeStyle = 'clamp(1.1rem, 2vw, 1.9rem)';
                 }
 
-                // Ограничиваем ширину контейнера текста (w-[80%] left-[10%]), чтобы он не вылазил за ткань
                 let innerHTML = `
                     <div class="w-full relative">
                         <img src="${flag.imgUrl}" alt="Флажок" class="w-full h-auto block pointer-events-none" draggable="false" />
@@ -263,19 +293,16 @@
 
                 flagElement.addEventListener('click', () => {
                     if (isWon) return;
-
                     if (selectedId === null) {
                         selectedId = flag.id;
                         renderFlags();
                         return;
                     }
-
                     if (selectedId === flag.id) {
                         selectedId = null;
                         renderFlags();
                         return;
                     }
-
                     swapFlagsById(selectedId, flag.id);
                     selectedId = null;
                     checkWinCondition();
@@ -293,17 +320,13 @@
                     setTimeout(() => flagElement.classList.add('opacity-50'), 0);
                 });
 
-                flagElement.addEventListener('dragover', (event) => {
-                    event.preventDefault();
-                });
+                flagElement.addEventListener('dragover', (event) => event.preventDefault());
 
                 flagElement.addEventListener('drop', (event) => {
                     event.preventDefault();
                     if (isWon) return;
-
                     const fromIdx = parseInt(event.dataTransfer.getData('text/plain'), 10);
                     const toIdx = index;
-
                     if (fromIdx !== toIdx) {
                         const draggedFlag = flags[fromIdx];
                         flags.splice(fromIdx, 1);
@@ -329,102 +352,90 @@
             flags[idx2] = temp;
         }
 
+        function playCelebrateSound() {
+            cheerSound.currentTime = 0;
+            cheerSound.play().catch(e => console.log("Audio play blocked", e));
+        }
+
         function showConfetti() {
-            const duration = 3000;
+            const duration = 5000;
             const end = Date.now() + duration;
             const colors = ['#FFC700', '#FF0000', '#2E3192', '#41BBC7', '#42B649', '#E0004D'];
 
+            // Плавный запуск конфетти порциями
             (function frame() {
+                // Уменьшено количество частиц за один раз для большей плавности
                 confetti({
-                    particleCount: 5,
-                    angle: 60,
-                    spread: 55,
-                    origin: { x: 0, y: 0.6 },
-                    colors: colors,
-                    zIndex: 100
+                    particleCount: 2, angle: 60, spread: 55, origin: { x: 0, y: 0.65 }, colors: colors, zIndex: 100
                 });
                 confetti({
-                    particleCount: 5,
-                    angle: 120,
-                    spread: 55,
-                    origin: { x: 1, y: 0.6 },
-                    colors: colors,
-                    zIndex: 100
+                    particleCount: 2, angle: 120, spread: 55, origin: { x: 1, y: 0.65 }, colors: colors, zIndex: 100
                 });
-
-                if (Date.now() < end) {
-                    requestAnimationFrame(frame);
-                }
+                if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
 
         function showBalloons() {
-            const balloonCount = 25; 
-            
+            const balloonCount = 30;
+            // Увеличено время разброса появления шариков для плавности
             for (let i = 0; i < balloonCount; i++) {
-                const balloon = document.createElement('div');
-                const gradId = 'grad_' + Math.random().toString(36).substr(2, 9);
-                
-                balloon.innerHTML = `
-                    <svg viewBox="0 0 100 200" style="width: 100%; height: 100%; overflow: visible;">
-                        <defs>
-                            <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
-                                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
-                                <stop offset="15%" stop-color="#ff6b9d" />
-                                <stop offset="65%" stop-color="#e6004c" />
-                                <stop offset="100%" stop-color="#990033" />
-                            </radialGradient>
-                        </defs>
-                        <path d="M50,118 Q70,145 45,170 T55,220" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
-                        <path d="M47,118 L41,126 A2,2 0 0,0 43,129 L57,129 A2,2 0 0,0 59,126 L53,118 Z" fill="#990033" />
-                        <path d="M 50 5 C 75 5, 95 25, 95 55 C 95 85, 65 110, 50 120 C 35 110, 5 85, 5 55 C 5 25, 25 5, 50 5 Z" fill="url(#${gradId})" />
-                        <path d="M 15 55 C 15 35, 25 15, 45 8 C 25 12, 12 35, 12 60 C 12 70, 16 80, 22 88 C 16 75, 15 65, 15 55 Z" fill="#ffffff" opacity="0.25" />
-                    </svg>
-                `;
-                
-                balloon.style.position = 'absolute';
-                balloon.style.left = Math.random() * 100 + 'vw';
-                balloon.style.bottom = '-20vh'; 
-                
-                const size = Math.random() * 4 + 4; 
-                balloon.style.width = size + 'rem';
-                balloon.style.height = (size * 2) + 'rem';
-                
-                balloon.style.filter = `hue-rotate(${Math.random() * 360}deg) drop-shadow(0 12px 20px rgba(0,0,0,0.4))`;
-                
-                balloonsContainer.appendChild(balloon);
-
-                const duration = Math.random() * 3000 + 4000;
-                const animation = balloon.animate([
-                    { transform: `translate3d(0, 0, 0) rotate(${Math.random() * 10 - 5}deg)` },
-                    { transform: `translate3d(${Math.random() * 200 - 100}px, -130vh, 0) rotate(${Math.random() * 30 - 15}deg)` }
-                ], {
-                    duration: duration,
-                    easing: 'ease-in-out',
-                    fill: 'forwards'
-                });
-
-                animation.onfinish = () => {
-                    balloon.remove();
-                };
+                setTimeout(() => {
+                    const balloon = document.createElement('div');
+                    const gradId = 'grad_' + Math.random().toString(36).substr(2, 9);
+                    
+                    // Добавлен класс balloon-fade для плавного появления
+                    balloon.className = 'balloon-fade';
+                    
+                    balloon.innerHTML = `
+                        <svg viewBox="0 0 100 200" style="width: 100%; height: 100%; overflow: visible;">
+                            <defs>
+                                <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
+                                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                                    <stop offset="15%" stop-color="#ff6b9d" />
+                                    <stop offset="65%" stop-color="#e6004c" />
+                                    <stop offset="100%" stop-color="#990033" />
+                                </radialGradient>
+                            </defs>
+                            <path d="M50,118 Q70,145 45,170 T55,220" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+                            <path d="M47,118 L41,126 A2,2 0 0,0 43,129 L57,129 A2,2 0 0,0 59,126 L53,118 Z" fill="#990033" />
+                            <path d="M 50 5 C 75 5, 95 25, 95 55 C 95 85, 65 110, 50 120 C 35 110, 5 85, 5 55 C 5 25, 25 5, 50 5 Z" fill="url(#${gradId})" />
+                            <path d="M 15 55 C 15 35, 25 15, 45 8 C 25 12, 12 35, 12 60 C 12 70, 16 80, 22 88 C 16 75, 15 65, 15 55 Z" fill="#ffffff" opacity="0.25" />
+                        </svg>
+                    `;
+                    balloon.style.position = 'absolute';
+                    balloon.style.left = Math.random() * 100 + 'vw';
+                    balloon.style.bottom = '-20vh'; 
+                    const size = Math.random() * 3 + 4; 
+                    balloon.style.width = size + 'rem';
+                    balloon.style.height = (size * 2) + 'rem';
+                    balloon.style.filter = `hue-rotate(${Math.random() * 360}deg) drop-shadow(0 12px 20px rgba(0,0,0,0.4))`;
+                    
+                    balloonsContainer.appendChild(balloon);
+                    
+                    const duration = Math.random() * 4000 + 6000;
+                    const animation = balloon.animate([
+                        { transform: `translate3d(0, 0, 0) rotate(${Math.random() * 10 - 5}deg)` },
+                        { transform: `translate3d(${Math.random() * 250 - 125}px, -140vh, 0) rotate(${Math.random() * 40 - 20}deg)` }
+                    ], { duration: duration, easing: 'ease-out', fill: 'forwards' });
+                    
+                    animation.onfinish = () => balloon.remove();
+                }, Math.random() * 4000); // Разброс появления до 4 секунд
             }
         }
 
         function checkWinCondition() {
             const targetSentence = shuffledSentences[currentSentenceIndex];
             const currentSentence = flags.map((flag) => flag.word).join(' ');
-            
             if (currentSentence === targetSentence) {
                 isWon = true;
-                score++; // Увеличиваем счет
-                updateScoreDisplay(); // Обновляем отображение
+                score++;
+                updateScoreDisplay();
+                playCelebrateSound();
                 
-                if (currentSentenceIndex % 2 === 0) {
-                    showConfetti();
-                } else {
-                    showBalloons();
-                }
-
+                // Эффекты запускаются постепенно
+                if (currentSentenceIndex % 2 === 0) showConfetti(); else showBalloons();
+                
+                // Задержка 7 секунд перед следующим предложением
                 setTimeout(() => {
                     if (currentSentenceIndex < shuffledSentences.length - 1) {
                         currentSentenceIndex++;
@@ -432,7 +443,7 @@
                     } else {
                         endGameModal.classList.remove('hidden');
                     }
-                }, 4000); // Сократил до 4 секунд, чтобы динамичнее переходить
+                }, 7000); 
             }
         }
 
